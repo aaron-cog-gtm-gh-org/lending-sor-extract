@@ -28,6 +28,21 @@ def test_extract_schema_and_repeatability(database):
         assert db.execute("SELECT * FROM sor_loans ORDER BY loan_id").fetchall() == source
 
 
+def test_live_status_and_booking_cutoff(database):
+    run()
+    with duckdb.connect(str(database)) as db:
+        assert db.execute("""
+            SELECT loan_id FROM stg_loans
+            WHERE status = 'RESTRUCTURED' ORDER BY loan_id
+        """).fetchall() == [(f"L{i:04d}",) for i in range(1, 9)]
+        assert db.execute("SELECT count(*) FROM sor_loans WHERE status = 'CLOSED'").fetchone()[0] > 0
+        assert db.execute("SELECT count(*) FROM stg_loans WHERE status = 'CLOSED'").fetchone()[0] == 0
+        assert db.execute("""
+            SELECT count(*) FROM stg_loans
+            WHERE booking_date > DATE '2025-03-31' OR loan_id IN ('L0009', 'L0010')
+        """).fetchone()[0] == 0
+
+
 def test_source_missing(database, monkeypatch, tmp_path):
     monkeypatch.setattr("pipeline.ROOT", tmp_path)
     (tmp_path / "config.json").write_text('{"cutoff_date": "2025-03-31"}')

@@ -20,7 +20,7 @@ def run():
         db.execute("""
             CREATE OR REPLACE TABLE stg_loans AS
             SELECT * FROM sor_loans
-            WHERE status IN ('ACTIVE', 'DELINQUENT')
+            WHERE status != 'CLOSED'
               AND booking_date <= ?::DATE
         """, [config["cutoff_date"]])
 
